@@ -21,12 +21,17 @@ test("Netlify publishes Vite output and declares security headers", async () => 
   assert.match(config, /from = "\/api\/\*"/);
 });
 
-test("read-only API exposes documented health and subject routes", async () => {
+test("API validates Supabase JWTs and supports protected persistence routes", async () => {
   const api = await read("../netlify/functions/api.ts");
-  assert.match(api, /event\.httpMethod !== "GET"/);
   assert.match(api, /path === "\/health"/);
   assert.match(api, /path === "\/subjects"/);
+  assert.match(api, /\/auth\/v1\/user/);
+  assert.match(api, /\/progress/);
+  assert.match(api, /\/quiz-attempts/);
+  assert.match(api, /event\.httpMethod/);
   assert.match(api, /statusCode: 404/);
+  assert.match(api, /user_id: user\.id/);
+  assert.doesNotMatch(api, /service_role/i);
 });
 
 test("database migration enables row-level security and owner-scoped policies", async () => {
@@ -35,5 +40,6 @@ test("database migration enables row-level security and owner-scoped policies", 
   assert.match(migration, /auth\.uid\(\)/);
   assert.match(migration, /quiz_attempts_insert_own/);
   assert.match(migration, /lesson_progress_insert_own/);
+  assert.match(migration, /lesson_progress_update_own/);
   assert.doesNotMatch(migration, /using\s*\(\s*true\s*\)/i);
 });
