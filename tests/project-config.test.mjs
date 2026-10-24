@@ -29,7 +29,7 @@ test("API validates Supabase JWTs and supports protected persistence routes", as
   assert.match(api, /\/progress/);
   assert.match(api, /\/quiz-attempts/);
   assert.match(api, /event\.httpMethod/);
-  assert.match(api, /statusCode: 404/);
+  assert.match(api, /json\(404/);
   assert.match(api, /user_id: user\.id/);
   assert.doesNotMatch(api, /service_role/i);
 });
