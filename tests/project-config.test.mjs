@@ -28,3 +28,12 @@ test("read-only API exposes documented health and subject routes", async () => {
   assert.match(api, /path === "\/subjects"/);
   assert.match(api, /statusCode: 404/);
 });
+
+test("database migration enables row-level security and owner-scoped policies", async () => {
+  const migration = await read("../supabase/migrations/20261024000000_initial_schema.sql");
+  assert.match(migration, /enable row level security/i);
+  assert.match(migration, /auth\.uid\(\)/);
+  assert.match(migration, /quiz_attempts_insert_own/);
+  assert.match(migration, /lesson_progress_insert_own/);
+  assert.doesNotMatch(migration, /using\s*\(\s*true\s*\)/i);
+});
