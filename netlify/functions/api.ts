@@ -10,9 +10,7 @@ const subjects = [
 ] as const;
 
 const json = (statusCode: number, payload: unknown, headers: Record<string, string>) => ({
-  statusCode,
-  headers,
-  body: JSON.stringify(payload)
+  statusCode, headers, body: JSON.stringify(payload)
 });
 
 const getConfig = () => {
@@ -23,7 +21,7 @@ const getConfig = () => {
 };
 
 const readBody = (body: string | null): Record<string, unknown> => {
-  if (!body) return {};
+  if (!body) throw new TypeError("Request body is required");
   try {
     const parsed: unknown = JSON.parse(body);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error();
@@ -40,32 +38,23 @@ const handler: Handler = async (event) => {
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
   };
-
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers, body: "" };
+
   const path = event.path.replace("/.netlify/functions/api", "").replace(/^\/api/, "") || "/";
   if (path === "/health" || path === "/") {
     return json(200, { status: "ok", service: "markazlashgan-b-api", version: "1.1.0" }, headers);
   }
-  if (path === "/subjects" && event.httpMethod === "GET") {
-    return json(200, { data: subjects }, headers);
-  }
-
-  if (!["GET", "POST"].includes(event.httpMethod)) {
-    return json(405, { error: "Method not allowed" }, headers);
-  }
+  if (path === "/subjects" && event.httpMethod === "GET") return json(200, { data: subjects }, headers);
+  if (!["GET", "POST"].includes(event.httpMethod)) return json(405, { error: "Method not allowed" }, headers);
 
   const authorization = event.headers.authorization ?? event.headers.Authorization;
   const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) return json(401, { error: "Authentication required" }, headers);
 
   let config: ReturnType<typeof getConfig>;
-  try {
-    config = getConfig();
-  } catch {
-    return json(503, { error: "Backend is not configured" }, headers);
-  }
+  try { config = getConfig(); }
+  catch { return json(503, { error: "Backend is not configured" }, headers); }
 
-  // Validate the caller's access token with Supabase Auth; never trust a client-supplied user ID.
   let authResponse: Response;
   try {
     authResponse = await fetch(`${config.url}/auth/v1/user`, {
@@ -75,34 +64,27 @@ const handler: Handler = async (event) => {
     return json(502, { error: "Authentication provider unavailable" }, headers);
   }
   if (!authResponse.ok) return json(401, { error: "Invalid or expired access token" }, headers);
-  const user = await authResponse.json() as { id?: unknown; email?: unknown };
-  if (typeof user.id !== "string") return json(401, { error: "Invalid authenticated user" }, headers);
+  const user = await authResponse.json().catch(() => null) as { id?: unknown; email?: unknown } | null;
+  if (!user || typeof user.id !== "string") return json(401, { error: "Invalid authenticated user" }, headers);
 
   if (path === "/me" && event.httpMethod === "GET") {
     return json(200, { user: { id: user.id, ...(typeof user.email === "string" ? { email: user.email } : {}) } }, headers);
   }
 
-  const resources: Record<string, string> = {
-    "/progress": "lesson_progress",
-    "/quiz-attempts": "quiz_attempts"
-  };
+  const resources: Record<string, string> = { "/progress": "lesson_progress", "/quiz-attempts": "quiz_attempts" };
   const table = resources[path];
   if (!table) return json(404, { error: "Endpoint not found" }, headers);
 
   if (event.httpMethod === "GET") {
     const query = new URLSearchParams({
       select: path === "/progress" ? "lesson_id,completed_at" : "id,subject_id,score,total_questions,answers,completed_at",
-      order: path === "/progress" ? "completed_at.desc" : "completed_at.desc",
+      order: "completed_at.desc",
       limit: "100"
     });
     let response: Response;
     try {
       response = await fetch(`${config.url}/rest/v1/${table}?${query}`, {
-        headers: {
-          apikey: config.key,
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json"
-        }
+        headers: { apikey: config.key, Authorization: `Bearer ${token}`, Accept: "application/json" }
       });
     } catch {
       return json(502, { error: "Database unavailable" }, headers);
@@ -113,9 +95,8 @@ const handler: Handler = async (event) => {
   }
 
   let body: Record<string, unknown>;
-  try {
-    body = readBody(event.body);
-  } catch (error) {
+  try { body = readBody(event.body); }
+  catch (error) {
     return json(400, { error: error instanceof Error ? error.message : "Invalid request body" }, headers);
   }
 
@@ -132,31 +113,26 @@ const handler: Handler = async (event) => {
       return json(400, { error: "subject_id is not supported" }, headers);
     }
     if (!Number.isInteger(score) || !Number.isInteger(total_questions) ||
-      (score as number) < 0 || (total_questions as number) < 1 ||
-      (score as number) > (total_questions as number)) {
+      (score as number) < 0 || (total_questions as number) < 1 || (score as number) > (total_questions as number)) {
       return json(400, { error: "score and total_questions must be valid integers and score cannot exceed total_questions" }, headers);
     }
     if (answers !== undefined && (!Array.isArray(answers) || answers.length > 200)) {
       return json(400, { error: "answers must be an array with at most 200 items" }, headers);
     }
-    row = {
-      user_id: user.id,
-      subject_id,
-      score,
-      total_questions,
-      answers: answers ?? []
-    };
+    row = { user_id: user.id, subject_id, score, total_questions, answers: answers ?? [] };
   }
 
+  const upsert = path === "/progress";
+  const target = upsert ? `${config.url}/rest/v1/${table}?on_conflict=user_id%2Clesson_id` : `${config.url}/rest/v1/${table}`;
   let response: Response;
   try {
-    response = await fetch(`${config.url}/rest/v1/${table}`, {
+    response = await fetch(target, {
       method: "POST",
       headers: {
         apikey: config.key,
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-        Prefer: path === "/progress" ? "resolution=merge-duplicates,return=representation" : "return=representation"
+        Prefer: upsert ? "resolution=merge-duplicates,return=representation" : "return=representation"
       },
       body: JSON.stringify(row)
     });
