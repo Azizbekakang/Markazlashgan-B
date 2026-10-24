@@ -63,6 +63,7 @@ API hozircha faqat demo ma'lumotlarni beradi. CORS'ni kengaytirish yoki autentif
 - `src/App.tsx` — o'quv dashboard'i va test tajribasi
 - `src/styles.css` — interfeys va responsive dizayn
 - `netlify/functions/api.ts` — read-only API
+- `supabase/migrations/` — RLS bilan himoyalangan DB schema boshlang'ich migratsiyasi (UI bilan hali ulanmagan)
 - `netlify.toml` — deploy, routing va security headers
 - `.github/workflows/ci.yml` — avtomatik tekshiruvlar
 - `tests/` — loyiha konfiguratsiyasi testlari
