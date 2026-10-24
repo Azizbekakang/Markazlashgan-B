@@ -2,47 +2,71 @@
 
 O'zbek tilidagi 8-sinf CHSB/BSB tayyorgarlik platformasi. React, TypeScript, Vite va Netlify Functions asosida qurilgan.
 
-## Imkoniyatlar
+## Hozirgi imkoniyatlar
 
-- Fanlar va mavzular bo'yicha o'quv paneli
-- Interaktiv testlar, javobni tekshirish va natijani hisoblash
-- Progress va kundalik maqsadlar uchun dashboard
-- Responsive interfeys va qulay navigatsiya
-- Netlify Functions uchun API endpoint
-- TypeScript va Vite build pipeline
+- Fanlar katalogi va o'quv dashboard'i
+- Interaktiv, namuna savollarga asoslangan test oqimi
+- Javoblarni tekshirish va test natijasini hisoblash
+- Responsive interfeys va klaviatura focus holatlari
+- Serverless API health-check va fanlar endpointlari
+- Netlify deploy konfiguratsiyasi va xavfsizlik headerlari
+- GitHub Actions orqali typecheck, konfiguratsiya testlari va production build
 
-## Ishga tushirish
+> **Production holati:** bu hozircha frontend MVP va read-only demo API. Haqiqiy foydalanuvchi akkauntlari, ishonchli server-side progress, pullik funksiyalar yoki shaxsiy ma'lumotlarni saqlash uchun autentifikatsiya, ma'lumotlar bazasi, migratsiyalar, monitoring va maxfiy kalitlarni boshqarish hali integratsiya qilinmagan. Demo ma'lumotlarni real o'quvchi natijalari sifatida talqin qilmang.
 
-Node.js 20+ talab qilinadi.
+## Texnologiyalar
+
+- React 18 + TypeScript
+- Vite 6
+- Netlify Functions
+- GitHub Actions
+- Node.js 20+
+
+## Lokal ishga tushirish
 
 ```bash
 npm install
 npm run dev
 ```
 
-Production build:
+## Tekshiruvlar
 
 ```bash
+npm run typecheck
+npm test
 npm run build
 npm run preview
 ```
 
-## Netlify deploy
+## Deploy (Netlify)
 
-Repository'ni Netlify'ga ulang. Build command: `npm run build`, publish directory: `dist`. `netlify.toml` redirect va Functions sozlamalarini o'z ichiga oladi.
+1. Netlify'da ushbu GitHub repository'ni ulang.
+2. Build command: `npm run build`.
+3. Publish directory: `dist`.
+4. Functions directory: `netlify/functions` (`netlify.toml` orqali belgilanadi).
+5. Deploy preview va production deploy'dan keyin health endpointni tekshiring.
 
 ## API
 
-- `/.netlify/functions/api/health` — health check
-- `/.netlify/functions/api/subjects` — fanlar ro'yxati
+- `GET /api/health` — xizmat holati.
+- `GET /api/subjects` — demo fanlar ro'yxati.
+- Qo'llab-quvvatlanmaydigan yo'llar `404`, GET'dan boshqa metodlar `405` qaytaradi.
+
+API hozircha faqat demo ma'lumotlarni beradi. CORS'ni kengaytirish yoki autentifikatsiyasiz yozish endpointlarini qo'shish tavsiya etilmaydi.
+
+## Muhit o'zgaruvchilari
+
+`.env.example` faqat namuna. Hech qachon haqiqiy token, parol yoki private key'ni Git'ga commit qilmang. Production secrets Netlify environment variables orqali boshqarilishi kerak.
 
 ## Arxitektura
 
-- `src/App.tsx` — dashboard va test tajribasi
-- `src/styles.css` — responsive design system
-- `netlify/functions/api.ts` — serverless API
-- `netlify.toml` — deploy konfiguratsiyasi
+- `src/App.tsx` — o'quv dashboard'i va test tajribasi
+- `src/styles.css` — interfeys va responsive dizayn
+- `netlify/functions/api.ts` — read-only API
+- `netlify.toml` — deploy, routing va security headers
+- `.github/workflows/ci.yml` — avtomatik tekshiruvlar
+- `tests/` — loyiha konfiguratsiyasi testlari
 
-## Hozirgi holat
+## Xavfsizlik
 
-Bu repository boshlang'ich production-oriented MVP hisoblanadi. Haqiqiy foydalanuvchi akkauntlari, ma'lumotlar bazasi, server-side progress saqlash va admin kontent boshqaruvi uchun alohida auth/database integratsiyasi kerak bo'ladi.
+Xavfsizlik muammolarini oshkor qilish tartibi uchun [SECURITY.md](SECURITY.md) fayliga qarang.
